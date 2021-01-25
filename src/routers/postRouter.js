@@ -1,66 +1,93 @@
+// @ts-check
 import { Router } from 'express';
+
+import { postController } from '../controllers';
+
+import { requireAuth } from '../authentication';
+import { getSuccessfulDeletionMessage } from '../utils/constants';
 
 const router = Router();
 
-// define the routes
-router.route('/').get().post();
-router.route('/:id').get().put().delete();
-router.route('/user/:uid').get();
-router.route('/like/:id').post();
+// find and return all resources
+router.route('/')
+  .get(requireAuth, async (_req, res, next) => {
+    try {
+      const posts = await postController.readAll();
+      return res.status(200).json({ posts });
+    } catch (error) {
+      return next(error);
+    }
+  })
 
-// fetch all posts
-router.route('/').get((req, res) => {
-  return res.status(200).json({ message: 'fetching all posts...' });
-});
+  .post(requireAuth, async (req, res, next) => {
+    try {
+      const { content, uid } = req.body;
+      const { post, owner } = await postController.create({ content, uid });
+      return res.status(201).json({ post, owner });
+    } catch (error) {
+      return next(error);
+    }
+  });
 
-// create new post
-router.route('/').post((req, res) => {
-  const { content } = req.body;
-  return res
-    .status(200)
-    .json({ message: `creating new post with content ${content}` });
-});
+router.route('/:id')
+  .get(async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const post = await postController.read(id);
+      return res.status(200).json({ post });
+    } catch (error) {
+      return next(error);
+    }
+  })
 
-// fetch post by id
-router.route('/:id').get((req, res) => {
-  const { id } = req.params;
-  return res
-    .status(200)
-    .json({ message: `fetching post with id ${id}` });
-});
+  .put(requireAuth, async (req, res, next) => {
+    try {
+      const { id } = req.params;
 
-// update post by id
-router.route('/:id').put((req, res) => {
-  const { id } = req.params;
-  const { content } = req.body;
-  return res
-    .status(200)
-    .json({ message: `updating post with id ${id} with new content ${content}` });
-});
+      // * Limits the fields a user request can update while allowing the controller to update any valid field
+      const { content } = req.body;
 
-// remove post by id
-router.route('/:id').delete((req, res) => {
-  const { id } = req.params;
-  return res
-    .status(200)
-    .json({ message: `deleting post with id ${id}` });
-});
+      const post = await postController.update(id, { content });
+      return res.status(200).json({ post });
+    } catch (error) {
+      return next(error);
+    }
+  })
 
-// fetch posts of user with given uid
-router.route('/user/:uid').get((req, res) => {
-  const { uid } = req.params;
-  return res
-    .status(200)
-    .json({ message: `fetching posts of user with uid ${uid}` });
-});
+  .delete(requireAuth, async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const owner = await postController.remove(id);
+      return res.status(200).json({ owner, message: getSuccessfulDeletionMessage(id) });
+    } catch (error) {
+      return next(error);
+    }
+  });
 
-// like post with given id with uid passed in req.body
-router.route('/like/:id').post((req, res) => {
-  const { id } = req.params;
-  const { uid } = req.body;
-  return res
-    .status(200)
-    .json({ message: `user with uid ${uid} likes post with id ${id}` });
-});
+// Posts for a given user
+router.route('/user/:uid')
+  .get(async (req, res, next) => {
+    try {
+      const { uid } = req.params;
+      const results = await postController.findUserPosts(uid);
+      const resultIds = results.map((r) => { return r._id; });
+      return res.status(200).json({ results, resultIds, numResults: results.length });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+// Likes a post for a passed uid
+router.route('/like/:id')
+  .post(requireAuth, async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { uid } = req.body;
+      const post = await postController.likePost(id, uid);
+      return res.status(200).json({ post });
+    } catch (error) {
+      return next(error);
+    }
+  });
 
 export default router;

@@ -1,9 +1,8 @@
-import postRouter from './postRouter';
-import userRouter from './userRouter';
-import searchRouter from './searchRouter';
 import authRouter from './authRouter';
+import userRouter from './userRouter';
+import postRouter from './postRouter';
+import searchRouter from './searchRouter';
 
-// eslint-disable-next-line import/prefer-default-export
 export {
-  postRouter, userRouter, searchRouter, authRouter,
+  authRouter, userRouter, postRouter, searchRouter,
 };

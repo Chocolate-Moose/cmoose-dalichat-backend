@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import bodyParser from 'body-parser';
 import morgan from 'morgan';
+import mongoose from 'mongoose';
 
 import {
   authRouter, postRouter, searchRouter, userRouter,
@@ -23,6 +24,18 @@ dotenv.config();
 
 // Enable / disable http request logging
 app.use(morgan('dev'));
+
+// mongo stuff
+const { mongoURI } = process.env;
+mongoose.connect(mongoURI, { useNewUrlParser: true });
+mongoose.connection.on('open', (ref) => {
+  console.log('Connected to mongo');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.log('Could not connect to mongo! ');
+  return console.log(err);
+});
 
 // posts endpoint
 app.use('/posts', postRouter);

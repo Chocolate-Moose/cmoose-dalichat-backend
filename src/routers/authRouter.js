@@ -1,25 +1,53 @@
+/* eslint-disable consistent-return */
 import { Router } from 'express';
+
+import { userController } from '../controllers';
+import { requireAuth, requireSignin } from '../authentication';
 
 const router = Router();
 
-// define the routes
-router.route('/signup').post();
-router.route('/signin').post();
-router.route('/validate').post();
+router.route('/signup')
+  .post(async (req, res, next) => {
+    try {
+      const {
+        email, username, password, firstName, lastName,
+      } = req.body;
 
-// sign up a new user
-router.route('/signup').post((req, res) => {
-  return res.status(200).json({ message: 'signing up new user' });
-});
+      const user = await userController.create({
+        email, username, password, firstName, lastName,
+      });
 
-// sign in an existing user
-router.route('/signin').post((req, res) => {
-  return res.status(200).json({ message: 'signing in an existing user' });
-});
+      return res.status(201).json({ token: userController.tokenForUser(user._id), user });
+    } catch (error) {
+      return next(error);
+    }
+  });
 
-// return information about a user
-router.route('/validate').post((req, res) => {
-  return res.status(200).json({ message: 'returning information about a user' });
-});
+// Send user object and server will send back authToken and user object
+router.route('/signin')
+  .post(requireSignin, (req, res, next) => {
+    try {
+      // This information is loaded into request object by passport
+      const user = req.user.toJSON();
+      delete user.password;
+
+      return res.status(200).json({ token: userController.tokenForUser(user._id), user });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+router.route('/validate')
+  .post(requireAuth, (req, res, next) => {
+    try {
+      // This information is loaded into request object by passport
+      const user = req.user.toJSON();
+      delete user.password;
+
+      res.status(200).json({ user });
+    } catch (error) {
+      return next(error);
+    }
+  });
 
 export default router;

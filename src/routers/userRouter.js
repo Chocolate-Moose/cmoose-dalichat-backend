@@ -1,39 +1,66 @@
 import { Router } from 'express';
 
+import { userController } from '../controllers';
+
+import { requireAuth } from '../authentication';
+import { getSuccessfulDeletionMessage } from '../utils/constants';
+
 const router = Router();
 
-// define the routes
-router.route('/').get();
-router.route('/:id').get().put().delete();
+router.use(requireAuth);
 
-// fetch all users
-router.route('/').get((req, res) => {
-  return res.status(200).json({ message: 'fetching all users...' });
-});
+// find and return all users
+router.route('/')
+  .get(async (_req, res, next) => {
+    try {
+      const users = await userController.readAll();
+      return res.status(200).json(users);
+    } catch (error) {
+      return next(error);
+    }
+  });
 
-// fetch user by id
-router.route('/:id').get((req, res) => {
-  const { id } = req.params;
-  return res
-    .status(200)
-    .json({ message: `fetching user with id ${id}` });
-});
+// * User creation handled by authRouter's "/signin" route
 
-// update user by id
-router.route('/:id').put((req, res) => {
-  const { id } = req.params;
-  const { content } = req.body;
-  return res
-    .status(200)
-    .json({ message: `updating user with id ${id} with new info ${content}` });
-});
+router.route('/:id')
+  .get(async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const user = await userController.read(id);
+      return res.status(200).json(user);
+    } catch (error) {
+      return next(error);
+    }
+  })
 
-// remove user by id
-router.route('/:id').delete((req, res) => {
-  const { id } = req.params;
-  return res
-    .status(200)
-    .json({ message: `deleting user with id ${id}` });
-});
+  .put(async (req, res, next) => {
+    try {
+      const { id } = req.params;
+
+      const {
+        email, username, firstName, lastName, profileUrl, backgroundUrl, portfolioUrl, blurb, password, // ! Only allow these fields to be updated
+        authPassword, // Credential field for verifying password update
+      } = req.body;
+
+      // Limit updating to the fields passed in this function (e.g. no `isAdmin` updates via this endpoint)
+      const user = await userController.update(id, {
+        email, username, firstName, lastName, profileUrl, backgroundUrl, portfolioUrl, blurb, password,
+      }, authPassword);
+
+      return res.status(200).json(user);
+    } catch (error) {
+      return next(error);
+    }
+  })
+
+  .delete(async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      await userController.remove(id);
+      return res.status(200).json({ message: getSuccessfulDeletionMessage(id) });
+    } catch (error) {
+      return next(error);
+    }
+  });
 
 export default router;
